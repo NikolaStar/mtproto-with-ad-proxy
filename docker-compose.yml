@@ -4,7 +4,7 @@ services:
     container_name: mtproxy
     restart: unless-stopped
     ports:
-      - "${PROXY_PORT:-443}:443"
+      - "${PROXY_PORT:-2083}:443"
     volumes:
       - proxy-config:/config
     environment:
@@ -41,10 +41,12 @@ services:
     container_name: nginx-proxy
     restart: unless-stopped
     ports:
-      - "80:80"    # Cloudflare терминирует SSL, к nginx приходит HTTP
+      - "443:443"
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./nginx/snippets:/etc/nginx/snippets:ro
+    environment:
+      - CF_ORIGIN_CERT=${CF_ORIGIN_CERT}
+      - CF_ORIGIN_KEY=${CF_ORIGIN_KEY}
     networks:
       - proxy-net
 
