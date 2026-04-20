@@ -31,6 +31,18 @@ def _is_admin(user_id: int) -> bool:
 @dp.message(Command("start"))
 async def cmd_start(message: Message):
     uid = str(message.from_user.id)
+
+    # Администраторам доступ выдаётся автоматически при первом /start
+    if _is_admin(message.from_user.id):
+        _, secret = await _manager.allow(uid)
+        link = _manager.build_link(secret)
+        await message.answer(
+            f"✅ Твоя ссылка на прокси:\n<code>{link}</code>\n\n"
+            "Нажми — Telegram предложит подключиться автоматически.",
+            parse_mode="HTML",
+        )
+        return
+
     link = await _manager.get_link(uid)
     if link:
         await message.answer(
