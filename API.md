@@ -18,7 +18,7 @@ Auth: заголовок `X-Api-Key: <API_KEY>` обязателен для вс
 ```json
 {
   "user_id": "123456789",
-  "link": "https://t.me/proxy?server=1.2.3.4&port=443&secret=ee...",
+  "link": "https://t.me/proxy?server=1.2.3.4&port=2083&secret=ee...",
   "created": true
 }
 ```
@@ -27,7 +27,7 @@ Auth: заголовок `X-Api-Key: <API_KEY>` обязателен для вс
 ```json
 {
   "user_id": "123456789",
-  "link": "https://t.me/proxy?server=1.2.3.4&port=443&secret=ee...",
+  "link": "https://t.me/proxy?server=1.2.3.4&port=2083&secret=ee...",
   "created": false
 }
 ```
@@ -49,7 +49,7 @@ Auth: заголовок `X-Api-Key: <API_KEY>` обязателен для вс
 ```json
 {
   "user_id": "123456789",
-  "link": "https://t.me/proxy?server=1.2.3.4&port=443&secret=ee..."
+  "link": "https://t.me/proxy?server=1.2.3.4&port=2083&secret=ee..."
 }
 ```
 
