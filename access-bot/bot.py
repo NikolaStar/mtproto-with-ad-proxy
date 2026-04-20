@@ -37,7 +37,7 @@ async def cmd_start(message: Message):
         _, secret = await _manager.allow(uid)
         link = _manager.build_link(secret)
         await message.answer(
-            f"✅ Твоя ссылка на прокси:\n<code>{link}</code>\n\n"
+            f"✅ Твоя ссылка на прокси:\n{link}\n\n"
             "Нажми — Telegram предложит подключиться автоматически.",
             parse_mode="HTML",
         )
@@ -47,7 +47,7 @@ async def cmd_start(message: Message):
     link = await _manager.get_link(uid)
     if link:
         await message.answer(
-            f"✅ Твоя ссылка на прокси:\n<code>{link}</code>\n\n"
+            f"✅ Твоя ссылка на прокси:\n{link}\n\n"
             "Нажми — Telegram предложит подключиться автоматически.",
             parse_mode="HTML",
         )
@@ -68,7 +68,7 @@ async def cmd_mylink(message: Message, command: CommandObject):
     link = await _manager.get_link(name)
     if link:
         await message.answer(
-            f"🔗 Ссылка для <code>{name}</code>:\n<code>{link}</code>",
+            f"🔗 Ссылка для <code>{name}</code>:\n{link}",
             parse_mode="HTML",
         )
     else:
@@ -89,7 +89,7 @@ async def _do_allow(message: Message, name: str, no_ad: bool):
     tier_label = "без рекламы" if actual_no_ad else "с рекламой"
     status_str = "✅ Выдан" if created else "ℹ️ Уже существует"
     await message.answer(
-        f"{status_str} доступ ({tier_label}) для <code>{name}</code>\n\nСсылка:\n<code>{link}</code>",
+        f"{status_str} доступ ({tier_label}) для <code>{name}</code>\n\nСсылка:\n{link}",
         parse_mode="HTML",
     )
     if created and name.lstrip("-").isdigit():
@@ -144,7 +144,7 @@ async def _do_move(message: Message, name: str, no_ad: bool):
     tier_label = "без рекламы" if no_ad else "с рекламой"
     if moved:
         await message.answer(
-            f"🔄 <code>{name}</code> перемещён на инстанс {tier_label}\n\nНовая ссылка:\n<code>{link}</code>",
+            f"🔄 <code>{name}</code> перемещён на инстанс {tier_label}\n\nНовая ссылка:\n{link}",
             parse_mode="HTML",
         )
         if name.lstrip("-").isdigit():
@@ -241,7 +241,7 @@ async def cmd_getlink(message: Message, command: CommandObject):
     link = await _manager.get_link(name)
     if link:
         await message.answer(
-            f"🔗 Ссылка для <code>{name}</code>:\n<code>{link}</code>",
+            f"🔗 Ссылка для <code>{name}</code>:\n{link}",
             parse_mode="HTML",
         )
     else:
