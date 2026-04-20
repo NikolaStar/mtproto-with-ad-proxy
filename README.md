@@ -83,7 +83,9 @@ Telegram admin ─────────┤──► access-bot        (aiogra
 **Контроль доступа** работает через уникальные секреты: каждому разрешённому пользователю выдаётся персональная ссылка. При отзыве доступа секрет удаляется, прокси перезапускается — пользователь теряет доступ немедленно.
 
 ```
-tg://proxy?server=<IP>&port=2083&secret=ee<domain_hex><user_secret>
+tg://proxy?server=<IP>&port=2083&secret=dd<user_secret>
+# или для Fake-TLS:
+tg://proxy?server=<IP>&port=2083&secret=ee<user_secret><domain_hex>
 ```
 
 **Реклама канала (AD_TAG)** — пользователи прокси видят спонсорские посты твоего канала:
@@ -164,6 +166,7 @@ REST API для управления доступами к MTProto прокси.
 |------------|:-----------:|:------------:|----------|
 | `PROXY_HOST` | ✓ | — | Публичный IP или домен VPS |
 | `PROXY_PORT` | | `2083` | Порт MTProto прокси |
+| `PROXY_SECRET_MODE` | | `dd` | Режим ссылки для клиента: `dd` (рекомендуется), `ee` (Fake-TLS) |
 | `REDIS_PASSWORD` | ✓ | — | Пароль Redis |
 | `API_KEY` | ✓ | — | Ключ для HTTP API (`X-Api-Key`) |
 | `API_PORT` | | `8080` | Порт HTTP API |

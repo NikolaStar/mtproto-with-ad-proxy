@@ -11,9 +11,10 @@ import redis.asyncio as aioredis
 log = logging.getLogger(__name__)
 
 PROXY_HOST = os.environ["PROXY_HOST"]
-PROXY_PORT = int(os.environ.get("PROXY_PORT", 443))
+PROXY_PORT = int(os.environ.get("PROXY_PORT", 2083))
 TLS_DOMAIN = os.environ.get("TLS_DOMAIN", "www.google.com")
 AD_TAG = os.environ.get("AD_TAG", "")
+PROXY_SECRET_MODE = os.environ.get("PROXY_SECRET_MODE", "dd").lower()
 CONFIG_PATH = "/proxy-config/config.py"
 
 
@@ -58,9 +59,13 @@ class ProxyManager:
     # ── link building ─────────────────────────────────────────────────────────
 
     def build_link(self, secret_hex: str) -> str:
-        domain_hex = TLS_DOMAIN.encode().hex()
-        tls_secret = f"ee{domain_hex}{secret_hex}"
-        return f"https://t.me/proxy?server={PROXY_HOST}&port={PROXY_PORT}&secret={tls_secret}"
+        # dd-режим обычно более совместим с клиентами, ee можно включить через PROXY_SECRET_MODE=ee
+        if PROXY_SECRET_MODE == "ee":
+            domain_hex = TLS_DOMAIN.encode().hex()
+            client_secret = f"ee{secret_hex}{domain_hex}"
+        else:
+            client_secret = f"dd{secret_hex}"
+        return f"https://t.me/proxy?server={PROXY_HOST}&port={PROXY_PORT}&secret={client_secret}"
 
     async def get_link(self, user_id: str) -> str | None:
         secret = await self.get_secret(user_id)
@@ -71,12 +76,10 @@ class ProxyManager:
     async def _write_config_and_reload(self):
         users = await self.list_users()
 
-        domain_hex = TLS_DOMAIN.encode().hex()
         users_repr = "{\n"
         for uid, secret in users.items():
-            # mtprotoproxy expects plain hex strings, converts internally
-            full_secret = f"ee{domain_hex}{secret}"
-            users_repr += f'    "{uid}": "{full_secret}",\n'
+            # mtprotoproxy ожидает в USERS только 16-байтный hex-секрет (без ee и без домена)
+            users_repr += f'    "{uid}": "{secret}",\n'
         users_repr += "}"
 
         # mtprotoproxy calls bytes.fromhex(AD_TAG) internally — must be a plain hex string
