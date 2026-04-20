@@ -1,0 +1,5 @@
+aiogram==3.13.1
+redis==5.2.1
+docker==7.1.0
+fastapi==0.115.6
+uvicorn==0.32.1
