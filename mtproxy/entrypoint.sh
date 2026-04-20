@@ -10,4 +10,4 @@ until [ -f "$CONFIG_FILE" ]; do
 done
 
 echo "Starting mtprotoproxy..."
-exec python -m mtprotoproxy "$CONFIG_FILE"
+exec mtprotoproxy "$CONFIG_FILE"
