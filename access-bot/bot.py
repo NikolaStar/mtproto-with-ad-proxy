@@ -248,12 +248,89 @@ async def cmd_getlink(message: Message, command: CommandObject):
         await message.answer(f"⛔ Доступ для <code>{name}</code> не найден.", parse_mode="HTML")
 
 
+@dp.message(Command("setlimit"))
+async def cmd_setlimit(message: Message, command: CommandObject):
+    """Установить лимит одновременных подключений для пользователя."""
+    if not _is_admin(message.from_user.id):
+        return
+
+    args = (command.args or "").split()
+    if not args:
+        await message.answer(
+            "Использование:\n"
+            "/setlimit <code>vasya 5</code> — установить лимит 5\n"
+            "/setlimit <code>vasya 0</code> — сбросить на дефолт",
+            parse_mode="HTML",
+        )
+        return
+
+    name = args[0]
+    limit_arg = args[1] if len(args) > 1 else "0"
+
+    if not limit_arg.isdigit():
+        await message.answer("❌ Лимит должен быть числом >= 0 (0 = сбросить на дефолт).")
+        return
+
+    limit_val = int(limit_arg)
+    if limit_val < 0:
+        await message.answer("❌ Лимит должен быть >= 0.")
+        return
+
+    info = await _manager.get_secret(name)
+    if not info:
+        await message.answer(f"⛔ Пользователь <code>{name}</code> не найден.", parse_mode="HTML")
+        return
+
+    actual_limit = None if limit_val == 0 else limit_val
+    await _manager.set_conn_limit(name, actual_limit)
+    effective, is_custom = await _manager.get_conn_limit(name)
+
+    if is_custom:
+        await message.answer(
+            f"✅ Лимит для <code>{name}</code> установлен: <b>{effective}</b> подключений.",
+            parse_mode="HTML",
+        )
+    else:
+        await message.answer(
+            f"🔄 Лимит для <code>{name}</code> сброшен на дефолт: <b>{effective}</b> подключений.",
+            parse_mode="HTML",
+        )
+
+
+@dp.message(Command("getlimit"))
+async def cmd_getlimit(message: Message, command: CommandObject):
+    """Показать текущий лимит подключений для пользователя."""
+    if not _is_admin(message.from_user.id):
+        return
+
+    name = (command.args or "").strip()
+    if not name:
+        await message.answer(
+            "Использование: /getlimit <code>vasya</code>",
+            parse_mode="HTML",
+        )
+        return
+
+    info = await _manager.get_secret(name)
+    if not info:
+        await message.answer(f"⛔ Пользователь <code>{name}</code> не найден.", parse_mode="HTML")
+        return
+
+    effective, is_custom = await _manager.get_conn_limit(name)
+    source = "индивидуальный" if is_custom else f"дефолт (DEFAULT_CONN_LIMIT)"
+    await message.answer(
+        f"📊 Лимит для <code>{name}</code>: <b>{effective}</b> подключений ({source}).",
+        parse_mode="HTML",
+    )
+
+
 @dp.message(Command("reload"))
 async def cmd_reload(message: Message):
     if not _is_admin(message.from_user.id):
         return
-    await _manager._write_config_and_reload()
-    await message.answer("🔄 Конфиг обновлён, прокси перезапущен.")
+    await _manager._write_config_and_reload(False)
+    await _manager._write_config_and_reload(True)
+    await message.answer("🔄 Конфиг обновлён, оба прокси перезапущены.")
 
 
 @dp.message(Command("help"))
@@ -270,6 +347,10 @@ async def cmd_help(message: Message):
             "/getlink <code>vasya</code> — получить ссылку по имени\n"
             "/list — список всех доступов\n"
             "/reload — пересобрать конфиг прокси\n\n"
+            "<b>Лимиты подключений:</b>\n"
+            "/setlimit <code>vasya 5</code> — установить лимит 5 подключений\n"
+            "/setlimit <code>vasya 0</code> — сбросить на дефолт\n"
+            "/getlimit <code>vasya</code> — показать текущий лимит\n\n"
             "<b>Для пользователей:</b>\n"
             "/start — получить ссылку (по Telegram ID)\n"
             "/mylink — ссылка по Telegram ID\n"

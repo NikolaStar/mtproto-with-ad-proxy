@@ -50,6 +50,7 @@ services:
       - REDIS_URL=redis://:${REDIS_PASSWORD:-changeme_redis_pass}@redis:6379/0
       - API_KEY=${API_KEY}
       - API_PORT=${API_PORT:-8080}
+      - DEFAULT_CONN_LIMIT=${DEFAULT_CONN_LIMIT:-3}
     networks:
       - proxy-net
 

@@ -65,6 +65,17 @@ class UserEntry(BaseModel):
     no_ad: bool
 
 
+class LimitBody(BaseModel):
+    limit: int | None = None  # None or omit = reset to default (DEFAULT_CONN_LIMIT)
+
+
+class LimitResponse(BaseModel):
+    user_id: str
+    limit: int
+    is_custom: bool   # True if per-user override is set, False if using default
+    default_limit: int
+
+
 # ── routes ────────────────────────────────────────────────────────────────────
 
 @app.post(
@@ -160,6 +171,57 @@ async def list_access(_: AuthDep):
         UserEntry(user_id=uid, link=_manager.build_link(secret, no_ad), no_ad=no_ad)
         for uid, (secret, no_ad) in users.items()
     ]
+
+
+@app.get(
+    "/api/v1/access/{user_id}/limit",
+    response_model=LimitResponse,
+    summary="Get connection limit for a user",
+)
+async def get_conn_limit(_: AuthDep, user_id: str):
+    """
+    Возвращает лимит одновременных подключений пользователя.
+    is_custom=false означает, что используется глобальный DEFAULT_CONN_LIMIT.
+    """
+    info = await _manager.get_secret(user_id)
+    if not info:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    effective, is_custom = await _manager.get_conn_limit(user_id)
+    return LimitResponse(
+        user_id=user_id,
+        limit=effective,
+        is_custom=is_custom,
+        default_limit=_manager.default_conn_limit,
+    )
+
+
+@app.put(
+    "/api/v1/access/{user_id}/limit",
+    response_model=LimitResponse,
+    summary="Set connection limit for a user",
+)
+async def set_conn_limit(_: AuthDep, user_id: str, body: LimitBody):
+    """
+    Устанавливает лимит одновременных подключений для пользователя.
+    Конфиг прокси обновляется и прокси перезапускается автоматически.
+
+    - `limit` >= 1 — установить конкретный лимит
+    - `limit` = null (или не передавать) — сбросить на DEFAULT_CONN_LIMIT
+    """
+    info = await _manager.get_secret(user_id)
+    if not info:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if body.limit is not None and body.limit < 1:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            detail="limit must be >= 1, or null to reset to default")
+    await _manager.set_conn_limit(user_id, body.limit)
+    effective, is_custom = await _manager.get_conn_limit(user_id)
+    return LimitResponse(
+        user_id=user_id,
+        limit=effective,
+        is_custom=is_custom,
+        default_limit=_manager.default_conn_limit,
+    )
 
 
 @app.get("/health", include_in_schema=False)

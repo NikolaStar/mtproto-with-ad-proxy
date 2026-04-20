@@ -16,6 +16,7 @@ PROXY_PORT_NOAD = int(os.environ.get("PROXY_PORT_NOAD", 2084))
 TLS_DOMAIN = os.environ.get("TLS_DOMAIN", "www.google.com")
 AD_TAG = os.environ.get("AD_TAG", "")
 PROXY_SECRET_MODE = os.environ.get("PROXY_SECRET_MODE", "dd").lower()
+DEFAULT_CONN_LIMIT = int(os.environ.get("DEFAULT_CONN_LIMIT", 3))
 
 _CONFIG_PATH = {
     False: "/proxy-config/config.py",
@@ -29,6 +30,7 @@ _REDIS_KEY = {
     False: "users",
     True:  "users_noad",
 }
+_REDIS_LIMITS_KEY = "conn_limits"  # hash: {user_id: int}
 
 
 class ProxyManager:
@@ -128,11 +130,37 @@ class ProxyManager:
         info = await self.get_secret(user_id)
         return self.build_link(*info) if info else None
 
+    # ── connection limits ─────────────────────────────────────────────────────
+
+    @property
+    def default_conn_limit(self) -> int:
+        return DEFAULT_CONN_LIMIT
+
+    async def set_conn_limit(self, user_id: str, limit: int | None) -> None:
+        """Set per-user connection limit. Pass None to remove override (use default)."""
+        if limit is None:
+            await self.redis.hdel(_REDIS_LIMITS_KEY, user_id)
+        else:
+            await self.redis.hset(_REDIS_LIMITS_KEY, user_id, str(limit))
+        for no_ad in (False, True):
+            if await self.redis.hexists(_REDIS_KEY[no_ad], user_id):
+                await self._write_config_and_reload(no_ad)
+
+    async def get_conn_limit(self, user_id: str) -> tuple[int, bool]:
+        """Returns (effective_limit, is_custom). is_custom=True if per-user override exists."""
+        raw = await self.redis.hget(_REDIS_LIMITS_KEY, user_id)
+        if raw:
+            return int(raw), True
+        return DEFAULT_CONN_LIMIT, False
+
     # ── config & reload ───────────────────────────────────────────────────────
 
     async def _write_config_and_reload(self, no_ad: bool):
         raw = await self.redis.hgetall(_REDIS_KEY[no_ad])
         users = {k.decode(): v.decode() for k, v in raw.items()}
+
+        raw_limits = await self.redis.hgetall(_REDIS_LIMITS_KEY)
+        overrides = {k.decode(): int(v) for k, v in raw_limits.items()}
 
         users_repr = "{\n"
         for uid, secret in users.items():
@@ -140,12 +168,19 @@ class ProxyManager:
             users_repr += f'    "{uid}": "{secret}",\n'
         users_repr += "}"
 
+        tcp_conns_repr = "{\n"
+        for uid in users:
+            limit = overrides.get(uid, DEFAULT_CONN_LIMIT)
+            tcp_conns_repr += f'    "{uid}": {limit},\n'
+        tcp_conns_repr += "}"
+
         # mtprotoproxy calls bytes.fromhex(AD_TAG) internally — must be a plain hex string
         ad_line = f'AD_TAG = "{AD_TAG}"' if (AD_TAG and not no_ad) else 'AD_TAG = ""'
 
         config = (
             f"PORT = 443\n"
             f"USERS = {users_repr}\n"
+            f"USER_MAX_TCP_CONNS = {tcp_conns_repr}\n"
             f"{ad_line}\n"
             f'TLS_DOMAIN = "{TLS_DOMAIN}"\n'
             f"# Generated at {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}\n"
