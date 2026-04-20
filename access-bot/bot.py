@@ -80,6 +80,29 @@ async def cmd_mylink(message: Message, command: CommandObject):
 
 # ── admin commands ────────────────────────────────────────────────────────────
 
+async def _do_allow(message: Message, name: str, no_ad: bool):
+    created, secret = await _manager.allow(name, no_ad=no_ad)
+    # Resolve actual tier in case user already existed in the other one
+    info = await _manager.get_secret(name)
+    actual_secret, actual_no_ad = info
+    link = _manager.build_link(actual_secret, actual_no_ad)
+    tier_label = "без рекламы" if actual_no_ad else "с рекламой"
+    status_str = "✅ Выдан" if created else "ℹ️ Уже существует"
+    await message.answer(
+        f"{status_str} доступ ({tier_label}) для <code>{name}</code>\n\nСсылка:\n<code>{link}</code>",
+        parse_mode="HTML",
+    )
+    if created and name.lstrip("-").isdigit():
+        try:
+            await bot.send_message(
+                int(name),
+                "🎉 Тебе выдали доступ к прокси!\n"
+                "Напиши /start чтобы получить ссылку.",
+            )
+        except Exception:
+            pass
+
+
 @dp.message(Command("allow"))
 async def cmd_allow(message: Message, command: CommandObject):
     if not _is_admin(message.from_user.id):
@@ -95,24 +118,72 @@ async def cmd_allow(message: Message, command: CommandObject):
         )
         return
 
-    created, secret = await _manager.allow(name)
-    link = _manager.build_link(secret)
-    status = "✅ Выдан" if created else "ℹ️ Уже существует"
-    await message.answer(
-        f"{status} доступ для <code>{name}</code>\n\nСсылка:\n<code>{link}</code>",
-        parse_mode="HTML",
-    )
+    await _do_allow(message, name, no_ad=False)
 
-    # Уведомить пользователя в Telegram, если name — числовой ID
-    if created and name.lstrip("-").isdigit():
-        try:
-            await bot.send_message(
-                int(name),
-                "🎉 Тебе выдали доступ к прокси!\n"
-                "Напиши /start чтобы получить ссылку.",
-            )
-        except Exception:
-            pass
+
+@dp.message(Command("allownotad"))
+async def cmd_allownotad(message: Message, command: CommandObject):
+    """Выдать доступ на инстанс без рекламы."""
+    if not _is_admin(message.from_user.id):
+        return
+
+    name = (command.args or "").strip()
+    if not name:
+        await message.answer(
+            "Использование:\n"
+            "/allownotad <code>vasya</code> — выдать доступ без рекламы",
+            parse_mode="HTML",
+        )
+        return
+
+    await _do_allow(message, name, no_ad=True)
+
+
+async def _do_move(message: Message, name: str, no_ad: bool):
+    moved, link = await _manager.move(name, no_ad=no_ad)
+    tier_label = "без рекламы" if no_ad else "с рекламой"
+    if moved:
+        await message.answer(
+            f"🔄 <code>{name}</code> перемещён на инстанс {tier_label}\n\nНовая ссылка:\n<code>{link}</code>",
+            parse_mode="HTML",
+        )
+        if name.lstrip("-").isdigit():
+            try:
+                await bot.send_message(
+                    int(name),
+                    f"🔄 Твой прокси обновлён. Напиши /start чтобы получить новую ссылку.",
+                )
+            except Exception:
+                pass
+    else:
+        await message.answer(
+            f"ℹ️ <code>{name}</code> уже на инстансе {tier_label} или не найден.",
+            parse_mode="HTML",
+        )
+
+
+@dp.message(Command("movetoad"))
+async def cmd_movetoad(message: Message, command: CommandObject):
+    """Переместить пользователя на инстанс с рекламой."""
+    if not _is_admin(message.from_user.id):
+        return
+    name = (command.args or "").strip()
+    if not name:
+        await message.answer("Использование: /movetoad <code>vasya</code>", parse_mode="HTML")
+        return
+    await _do_move(message, name, no_ad=False)
+
+
+@dp.message(Command("movenotad"))
+async def cmd_movenotad(message: Message, command: CommandObject):
+    """Переместить пользователя на инстанс без рекламы."""
+    if not _is_admin(message.from_user.id):
+        return
+    name = (command.args or "").strip()
+    if not name:
+        await message.answer("Использование: /movenotad <code>vasya</code>", parse_mode="HTML")
+        return
+    await _do_move(message, name, no_ad=True)
 
 
 @dp.message(Command("revoke"))
@@ -190,8 +261,11 @@ async def cmd_help(message: Message):
     if _is_admin(message.from_user.id):
         text = (
             "<b>Управление доступами:</b>\n"
-            "/allow <code>vasya</code> — выдать доступ по имени\n"
+            "/allow <code>vasya</code> — выдать доступ с рекламой\n"
             "/allow <code>123456789</code> — выдать по Telegram ID\n"
+            "/allownotad <code>vasya</code> — выдать доступ без рекламы\n"
+            "/movetoad <code>vasya</code> — переместить на инстанс с рекламой\n"
+            "/movenotad <code>vasya</code> — переместить на инстанс без рекламы\n"
             "/revoke <code>vasya</code> — отозвать\n"
             "/getlink <code>vasya</code> — получить ссылку по имени\n"
             "/list — список всех доступов\n"

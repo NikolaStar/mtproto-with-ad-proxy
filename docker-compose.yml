@@ -13,6 +13,20 @@ services:
     networks:
       - proxy-net
 
+  mtproxy-noad:
+    build: ./mtproxy
+    container_name: mtproxy-noad
+    restart: unless-stopped
+    ports:
+      - "${PROXY_PORT_NOAD:-2084}:443"
+    volumes:
+      - proxy-config-noad:/config
+    environment:
+      - TLS_DOMAIN=${TLS_DOMAIN:-www.google.com}
+      - AD_TAG=
+    networks:
+      - proxy-net
+
   access-bot:
     build: ./access-bot
     container_name: access-bot
@@ -23,12 +37,14 @@ services:
       - "${API_PORT:-8080}:8080"
     volumes:
       - proxy-config:/proxy-config
+      - proxy-config-noad:/proxy-config-noad
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - BOT_TOKEN=${BOT_TOKEN}
       - ADMIN_IDS=${ADMIN_IDS}
       - PROXY_HOST=${PROXY_HOST}
       - PROXY_PORT=${PROXY_PORT:-2083}
+      - PROXY_PORT_NOAD=${PROXY_PORT_NOAD:-2084}
       - PROXY_SECRET_MODE=${PROXY_SECRET_MODE:-dd}
       - TLS_DOMAIN=${TLS_DOMAIN:-www.google.com}
       - REDIS_URL=redis://:${REDIS_PASSWORD:-changeme_redis_pass}@redis:6379/0
@@ -63,6 +79,7 @@ services:
 
 volumes:
   proxy-config:
+  proxy-config-noad:
   redis-data:
 
 networks:
