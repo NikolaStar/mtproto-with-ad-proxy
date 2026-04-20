@@ -71,9 +71,12 @@ class ProxyManager:
     async def _write_config_and_reload(self):
         users = await self.list_users()
 
+        domain_hex = TLS_DOMAIN.encode().hex()
         users_repr = "{\n"
         for uid, secret in users.items():
-            users_repr += f'    "{uid}": bytes.fromhex("{secret}"),\n'
+            # mtprotoproxy expects the full secret including ee+domain prefix
+            full_secret = f"ee{domain_hex}{secret}"
+            users_repr += f'    "{uid}": bytes.fromhex("{full_secret}"),\n'
         users_repr += "}"
 
         ad_line = f'AD_TAG = bytes.fromhex("{AD_TAG}")' if AD_TAG else "AD_TAG = b''"
