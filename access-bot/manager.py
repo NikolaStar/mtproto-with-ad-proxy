@@ -74,9 +74,9 @@ class ProxyManager:
         domain_hex = TLS_DOMAIN.encode().hex()
         users_repr = "{\n"
         for uid, secret in users.items():
-            # mtprotoproxy expects the full secret including ee+domain prefix
+            # mtprotoproxy expects plain hex strings, converts internally
             full_secret = f"ee{domain_hex}{secret}"
-            users_repr += f'    "{uid}": bytes.fromhex("{full_secret}"),\n'
+            users_repr += f'    "{uid}": "{full_secret}",\n'
         users_repr += "}"
 
         # mtprotoproxy calls bytes.fromhex(AD_TAG) internally — must be a plain hex string
