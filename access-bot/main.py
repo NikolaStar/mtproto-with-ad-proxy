@@ -20,7 +20,8 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 async def main():
     manager = ProxyManager(redis_url=REDIS_URL)
     await manager.init()
-    await manager._write_config_and_reload()
+    await manager._write_config_and_reload(False)
+    await manager._write_config_and_reload(True)
 
     api.set_manager(manager)
 
