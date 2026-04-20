@@ -9,7 +9,15 @@ from pydantic import BaseModel
 
 API_KEY = os.environ["API_KEY"]
 
-app = FastAPI(title="MTProxy Access API", version="1.0.0")
+app = FastAPI(
+    title="MTProxy Access API",
+    version="1.0.0",
+    description=(
+        "Управление доступами к MTProto прокси. "
+        "Поле `user_id` — произвольный строковый идентификатор: "
+        "Telegram user_id (`123456789`) или кастомное имя (`vasya`, `client_abc`)."
+    ),
+)
 
 # Injected from main.py after manager is initialised
 _manager = None

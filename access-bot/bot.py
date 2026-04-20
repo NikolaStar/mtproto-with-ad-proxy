@@ -43,6 +43,7 @@ async def cmd_start(message: Message):
         )
         return
 
+    # Попытка найти доступ по Telegram user_id
     link = await _manager.get_link(uid)
     if link:
         await message.answer(
@@ -51,16 +52,30 @@ async def cmd_start(message: Message):
             parse_mode="HTML",
         )
     else:
-        await message.answer("⛔ У тебя нет доступа. Обратись к администратору.")
+        await message.answer(
+            "⛔ Доступ по твоему Telegram ID не найден.\n\n"
+            "Если администратор выдал доступ по имени — используй:\n"
+            "<code>/mylink &lt;твоё_имя&gt;</code>",
+            parse_mode="HTML",
+        )
 
 
 @dp.message(Command("mylink"))
-async def cmd_mylink(message: Message):
-    link = await _manager.get_link(str(message.from_user.id))
+async def cmd_mylink(message: Message, command: CommandObject):
+    # /mylink         — ищет по Telegram user_id
+    # /mylink <name>  — ищет по кастомному имени
+    name = (command.args or "").strip() or str(message.from_user.id)
+    link = await _manager.get_link(name)
     if link:
-        await message.answer(f"🔗 <code>{link}</code>", parse_mode="HTML")
+        await message.answer(
+            f"🔗 Ссылка для <code>{name}</code>:\n<code>{link}</code>",
+            parse_mode="HTML",
+        )
     else:
-        await message.answer("⛔ У тебя нет доступа.")
+        await message.answer(
+            f"⛔ Доступ для <code>{name}</code> не найден.",
+            parse_mode="HTML",
+        )
 
 
 # ── admin commands ────────────────────────────────────────────────────────────
@@ -70,22 +85,32 @@ async def cmd_allow(message: Message, command: CommandObject):
     if not _is_admin(message.from_user.id):
         return
 
-    uid = (command.args or "").strip()
-    if not uid.lstrip("-").isdigit():
-        await message.answer("Использование: /allow <user_id>")
+    name = (command.args or "").strip()
+    if not name:
+        await message.answer(
+            "Использование:\n"
+            "/allow <code>vasya</code> — по кастомному имени\n"
+            "/allow <code>123456789</code> — по Telegram user_id",
+            parse_mode="HTML",
+        )
         return
 
-    created, secret = await _manager.allow(uid)
+    created, secret = await _manager.allow(name)
     link = _manager.build_link(secret)
-    status = "✅ Выдан" if created else "ℹ️ Уже был"
+    status = "✅ Выдан" if created else "ℹ️ Уже существует"
     await message.answer(
-        f"{status} доступ для <code>{uid}</code>\n\nСсылка:\n<code>{link}</code>",
+        f"{status} доступ для <code>{name}</code>\n\nСсылка:\n<code>{link}</code>",
         parse_mode="HTML",
     )
 
-    if created:
+    # Уведомить пользователя в Telegram, если name — числовой ID
+    if created and name.lstrip("-").isdigit():
         try:
-            await bot.send_message(int(uid), "🎉 Тебе выдали доступ к прокси! Напиши /start")
+            await bot.send_message(
+                int(name),
+                "🎉 Тебе выдали доступ к прокси!\n"
+                "Напиши /start чтобы получить ссылку.",
+            )
         except Exception:
             pass
 
@@ -95,20 +120,24 @@ async def cmd_revoke(message: Message, command: CommandObject):
     if not _is_admin(message.from_user.id):
         return
 
-    uid = (command.args or "").strip()
-    if not uid.lstrip("-").isdigit():
-        await message.answer("Использование: /revoke <user_id>")
+    name = (command.args or "").strip()
+    if not name:
+        await message.answer(
+            "Использование: /revoke <code>vasya</code> или /revoke <code>123456789</code>",
+            parse_mode="HTML",
+        )
         return
 
-    found = await _manager.revoke(uid)
+    found = await _manager.revoke(name)
     if found:
-        await message.answer(f"🚫 Доступ <code>{uid}</code> отозван.", parse_mode="HTML")
-        try:
-            await bot.send_message(int(uid), "⛔ Твой доступ к прокси отозван.")
-        except Exception:
-            pass
+        await message.answer(f"🚫 Доступ <code>{name}</code> отозван.", parse_mode="HTML")
+        if name.lstrip("-").isdigit():
+            try:
+                await bot.send_message(int(name), "⛔ Твой доступ к прокси отозван.")
+            except Exception:
+                pass
     else:
-        await message.answer(f"ℹ️ Пользователь {uid} не найден.")
+        await message.answer(f"ℹ️ <code>{name}</code> не найден.", parse_mode="HTML")
 
 
 @dp.message(Command("list"))
@@ -118,11 +147,34 @@ async def cmd_list(message: Message):
 
     users = await _manager.list_users()
     if not users:
-        await message.answer("Список пуст.")
+        await message.answer("Список доступов пуст.")
         return
 
-    lines = [f"👥 <b>Пользователей: {len(users)}</b>\n"] + [f"• <code>{uid}</code>" for uid in users]
+    lines = [f"👥 <b>Доступов: {len(users)}</b>\n"]
+    for name in users:
+        lines.append(f"• <code>{name}</code>")
     await message.answer("\n".join(lines), parse_mode="HTML")
+
+
+@dp.message(Command("getlink"))
+async def cmd_getlink(message: Message, command: CommandObject):
+    """Получить ссылку для любого имени (только для админов)."""
+    if not _is_admin(message.from_user.id):
+        return
+
+    name = (command.args or "").strip()
+    if not name:
+        await message.answer("Использование: /getlink <code>vasya</code>", parse_mode="HTML")
+        return
+
+    link = await _manager.get_link(name)
+    if link:
+        await message.answer(
+            f"🔗 Ссылка для <code>{name}</code>:\n<code>{link}</code>",
+            parse_mode="HTML",
+        )
+    else:
+        await message.answer(f"⛔ Доступ для <code>{name}</code> не найден.", parse_mode="HTML")
 
 
 @dp.message(Command("reload"))
@@ -137,15 +189,22 @@ async def cmd_reload(message: Message):
 async def cmd_help(message: Message):
     if _is_admin(message.from_user.id):
         text = (
-            "<b>Админ:</b>\n"
-            "/allow &lt;user_id&gt; — выдать доступ\n"
-            "/revoke &lt;user_id&gt; — отозвать\n"
-            "/list — список пользователей\n"
-            "/reload — пересобрать конфиг\n\n"
-            "<b>Пользователь:</b>\n"
-            "/start — получить ссылку\n"
-            "/mylink — показать ссылку"
+            "<b>Управление доступами:</b>\n"
+            "/allow <code>vasya</code> — выдать доступ по имени\n"
+            "/allow <code>123456789</code> — выдать по Telegram ID\n"
+            "/revoke <code>vasya</code> — отозвать\n"
+            "/getlink <code>vasya</code> — получить ссылку по имени\n"
+            "/list — список всех доступов\n"
+            "/reload — пересобрать конфиг прокси\n\n"
+            "<b>Для пользователей:</b>\n"
+            "/start — получить ссылку (по Telegram ID)\n"
+            "/mylink — ссылка по Telegram ID\n"
+            "/mylink <code>vasya</code> — ссылка по имени"
         )
     else:
-        text = "/start — получить ссылку на прокси\n/mylink — показать свою ссылку"
+        text = (
+            "/start — получить ссылку на прокси\n"
+            "/mylink — показать свою ссылку\n"
+            "/mylink <code>имя</code> — ссылка по имени (если выдан доступ не по ID)"
+        )
     await message.answer(text, parse_mode="HTML")
