@@ -36,6 +36,24 @@ services:
     networks:
       - proxy-net
 
+  nginx:
+    build: ./nginx
+    container_name: nginx-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "8443:443"   # 443 занят mtproxy; меняй если mtproxy на другом порту
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/templates:ro
+      - ./nginx/snippets:/etc/nginx/snippets:ro
+      - certbot-www:/var/www/certbot
+      - certbot-certs:/etc/letsencrypt
+    environment:
+      - TG_API_DOMAIN=${TG_API_DOMAIN}
+      - WEBHOOK_PROXY_DOMAIN=${WEBHOOK_PROXY_DOMAIN}
+    networks:
+      - proxy-net
+
   redis:
     image: redis:7-alpine
     container_name: proxy-redis
@@ -49,6 +67,8 @@ services:
 volumes:
   proxy-config:
   redis-data:
+  certbot-www:
+  certbot-certs:
 
 networks:
   proxy-net:
