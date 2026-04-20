@@ -79,7 +79,8 @@ class ProxyManager:
             users_repr += f'    "{uid}": bytes.fromhex("{full_secret}"),\n'
         users_repr += "}"
 
-        ad_line = f'AD_TAG = bytes.fromhex("{AD_TAG}")' if AD_TAG else "AD_TAG = b''"
+        # mtprotoproxy calls bytes.fromhex(AD_TAG) internally — must be a plain hex string
+        ad_line = f'AD_TAG = "{AD_TAG}"' if AD_TAG else 'AD_TAG = ""'
 
         config = (
             f"PORT = 443\n"
