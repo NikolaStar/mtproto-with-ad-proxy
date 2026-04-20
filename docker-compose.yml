@@ -28,7 +28,7 @@ services:
       - BOT_TOKEN=${BOT_TOKEN}
       - ADMIN_IDS=${ADMIN_IDS}
       - PROXY_HOST=${PROXY_HOST}
-      - PROXY_PORT=${PROXY_PORT:-443}
+      - PROXY_PORT=${PROXY_PORT:-2083}
       - TLS_DOMAIN=${TLS_DOMAIN:-www.google.com}
       - REDIS_URL=redis://:${REDIS_PASSWORD:-changeme_redis_pass}@redis:6379/0
       - API_KEY=${API_KEY}
