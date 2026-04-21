@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  MTProto Proxy + Webhook Bridge — Installation Wizard
+#  TeleGate — Installation Wizard
 #  Поддерживается: Ubuntu 22.04 / 24.04
 #
 #  Использование:
@@ -415,9 +415,10 @@ step_env() {
         || curl -sf --max-time 5 https://icanhazip.com 2>/dev/null \
         || hostname -I | awk '{print $1}' || true)
 
-    local PROXY_HOST PROXY_PORT
+    local PROXY_HOST PROXY_PORT PROXY_PORT_NOAD
     ask PROXY_HOST "Публичный IP / домен VPS" "${auto_ip}"
-    ask PROXY_PORT "Порт MTProto прокси" "2083"
+    ask PROXY_PORT "Порт MTProto прокси (с рекламой)" "2083"
+    ask PROXY_PORT_NOAD "Порт MTProto прокси (без рекламы)" "2084"
 
     # ── Redis ─────────────────────────────────────────────────────────────────
     echo ""
@@ -485,6 +486,7 @@ step_env() {
 
 PROXY_HOST=${PROXY_HOST}
 PROXY_PORT=${PROXY_PORT}
+PROXY_PORT_NOAD=${PROXY_PORT_NOAD}
 
 REDIS_PASSWORD=${REDIS_PASSWORD}
 
@@ -493,7 +495,6 @@ API_PORT=${API_PORT}
 
 TLS_DOMAIN=${TLS_DOMAIN}
 AD_TAG=${AD_TAG}
-DEFAULT_CONN_LIMIT=${DEFAULT_CONN_LIMIT:-3}
 
 CF_ORIGIN_CERT=${CF_ORIGIN_CERT}
 CF_ORIGIN_KEY=${CF_ORIGIN_KEY}
@@ -513,12 +514,13 @@ EOF
     # Показываем итог (без секретов)
     echo ""
     echo -e "  ${C_BOLD}Итог конфигурации:${C_RESET}"
-    echo -e "  PROXY_HOST    = ${C_CYAN}${PROXY_HOST}${C_RESET}"
-    echo -e "  PROXY_PORT    = ${C_CYAN}${PROXY_PORT}${C_RESET} (MTProto)"
-    echo -e "  API_PORT      = ${C_CYAN}${API_PORT}${C_RESET} (HTTP API)"
-    echo -e "  TLS_DOMAIN    = ${C_CYAN}${TLS_DOMAIN}${C_RESET}"
-    echo -e "  AD_TAG        = ${C_CYAN}${AD_TAG:-—}${C_RESET}"
-    echo -e "  Telegram бот  = ${C_CYAN}${BOT_TOKEN:+включён}${BOT_TOKEN:-выключен}${C_RESET}"
+    echo -e "  PROXY_HOST       = ${C_CYAN}${PROXY_HOST}${C_RESET}"
+    echo -e "  PROXY_PORT       = ${C_CYAN}${PROXY_PORT}${C_RESET} (MTProto с рекламой)"
+    echo -e "  PROXY_PORT_NOAD  = ${C_CYAN}${PROXY_PORT_NOAD}${C_RESET} (MTProto без рекламы)"
+    echo -e "  API_PORT         = ${C_CYAN}${API_PORT}${C_RESET} (HTTP API)"
+    echo -e "  TLS_DOMAIN       = ${C_CYAN}${TLS_DOMAIN}${C_RESET}"
+    echo -e "  AD_TAG           = ${C_CYAN}${AD_TAG:-—}${C_RESET}"
+    echo -e "  Telegram бот     = ${C_CYAN}${BOT_TOKEN:+включён}${BOT_TOKEN:-выключен}${C_RESET}"
 
     mark_done "env"
 }
@@ -653,6 +655,10 @@ show_summary() {
     echo -e "    Ссылка:    ${C_CYAN}tg://proxy?server=${PROXY_HOST}&port=${PROXY_PORT}&secret=...${C_RESET}"
     echo -e "    (персональные ссылки — через API или Telegram бот)"
     echo ""
+    echo -e "  ${C_BOLD}Telegram API прокси:${C_RESET}"
+    echo -e "    https://<твой_домен>/bot<TOKEN>/sendMessage"
+    echo -e "    (замена api.telegram.org — все методы Bot API)"
+    echo ""
     echo -e "  ${C_BOLD}Webhook Bridge:${C_RESET}"
     echo -e "    https://<твой_домен>/webhook-proxy/<host>/<path>?<query>"
     echo ""
@@ -680,7 +686,7 @@ main() {
         [[ "$FORCE" == true ]] && rm -f "$STATE_FILE"
     fi
 
-    header "MTProto Proxy + Webhook Bridge — Установщик"
+    header "TeleGate — Установщик"
     echo -e "  Лог: ${C_GRAY}${LOG_FILE}${C_RESET}"
     echo -e "  Состояние шагов: ${C_GRAY}${STATE_FILE}${C_RESET}"
     [[ "$FORCE" == true ]]       && warn "--force: все шаги будут выполнены заново."

@@ -103,6 +103,44 @@ Auth: заголовок `X-Api-Key: <API_KEY>` обязателен для вс
 
 ---
 
+## GET /api/v1/access/{user_id}/limit
+Получить лимит одновременных подключений пользователя.
+
+**Response 200:**
+```json
+{
+  "user_id": "123456789",
+  "limit": 3,
+  "is_custom": false,
+  "default_limit": 3
+}
+```
+`is_custom=false` — используется глобальный `DEFAULT_CONN_LIMIT`.  
+**Response 404** — пользователь не найден.
+
+---
+
+## PUT /api/v1/access/{user_id}/limit
+Установить индивидуальный лимит подключений.
+
+**Body:**
+```json
+{ "limit": 5 }
+```
+`limit=null` (или не передавать) — сбросить на `DEFAULT_CONN_LIMIT`.
+
+**Response 200:**
+```json
+{
+  "user_id": "123456789",
+  "limit": 5,
+  "is_custom": true,
+  "default_limit": 3
+}
+```
+
+---
+
 ## GET /health
 Healthcheck (без авторизации).
 
