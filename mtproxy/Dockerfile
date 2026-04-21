@@ -1,11 +1,8 @@
 FROM python:3.9-slim
 
-RUN pip install --no-cache-dir mtprotoproxy && \
-    python3 -c "\
-import pathlib; \
-f = pathlib.Path('/usr/local/bin/mtprotoproxy'); \
-f.write_text(f.read_text().replace('asyncio.streams.IncompleteReadError', 'asyncio.IncompleteReadError')) \
-"
+RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir git+https://github.com/alexbers/mtprotoproxy.git@master
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
