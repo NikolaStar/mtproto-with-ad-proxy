@@ -2,6 +2,7 @@
 
 import logging
 import os
+import re
 import secrets
 import time
 
@@ -168,21 +169,15 @@ class ProxyManager:
             users_repr += f'    "{uid}": "{secret}",\n'
         users_repr += "}"
 
-        tcp_conns_repr = "{\n"
-        for uid in users:
-            limit = overrides.get(uid, DEFAULT_CONN_LIMIT)
-            tcp_conns_repr += f'    "{uid}": {limit},\n'
-        tcp_conns_repr += "}"
-
         # mtprotoproxy calls bytes.fromhex(AD_TAG) internally — must be a plain hex string
         ad_line = f'AD_TAG = "{AD_TAG}"' if (AD_TAG and not no_ad) else 'AD_TAG = ""'
 
         config = (
             f"PORT = 443\n"
             f"USERS = {users_repr}\n"
-            f"USER_MAX_TCP_CONNS = {tcp_conns_repr}\n"
             f"{ad_line}\n"
             f'TLS_DOMAIN = "{TLS_DOMAIN}"\n'
+            f"METRICS_PORT = 8888\n"
             f"# Generated at {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}\n"
         )
 
@@ -201,3 +196,24 @@ class ProxyManager:
             log.info("%s restarted", container_name)
         except Exception as e:
             log.warning("Could not restart %s: %s", container_name, e)
+
+    def fetch_active_conns(self, no_ad: bool) -> dict[str, int]:
+        """Returns {user_id: curr_connects} from the proxy metrics endpoint."""
+        try:
+            container = self._docker.containers.get(_CONTAINER_NAME[no_ad])
+            result = container.exec_run([
+                "python3", "-c",
+                "import urllib.request; print(urllib.request.urlopen('http://localhost:8888').read().decode())"
+            ])
+            if result.exit_code != 0:
+                return {}
+            conns: dict[str, int] = {}
+            for m in re.finditer(
+                r'mtprotoproxy_user_connects_curr\{user="([^"]+)"\}\s+(\d+)',
+                result.output.decode()
+            ):
+                conns[m.group(1)] = int(m.group(2))
+            return conns
+        except Exception as e:
+            log.warning("Could not fetch metrics from %s: %s", _CONTAINER_NAME[no_ad], e)
+            return {}

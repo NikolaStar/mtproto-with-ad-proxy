@@ -221,9 +221,17 @@ async def cmd_list(message: Message):
         await message.answer("Список доступов пуст.")
         return
 
+    conns = {
+        False: _manager.fetch_active_conns(False),
+        True:  _manager.fetch_active_conns(True),
+    }
+
     lines = [f"👥 <b>Доступов: {len(users)}</b>\n"]
-    for name in users:
-        lines.append(f"• <code>{name}</code>")
+    for name, (secret, no_ad) in users.items():
+        curr = conns[no_ad].get(name, 0)
+        tier = "б/р" if no_ad else "реклама"
+        conn_str = f" — <b>{curr}</b> подкл." if curr > 0 else ""
+        lines.append(f"• <code>{name}</code> [{tier}]{conn_str}")
     await message.answer("\n".join(lines), parse_mode="HTML")
 
 
